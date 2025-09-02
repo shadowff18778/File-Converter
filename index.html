@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Convertisseur de Fichiers Stylé</title>
+    <title>Convertisseur de Fichiers</title>
     <!-- On charge Tailwind CSS pour un design rapide et responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- On charge Inter, une police moderne -->
@@ -344,6 +344,58 @@
             box-shadow: 0 5px 10px rgba(102, 126, 234, 0.3);
         }
 
+        /* Styles pour la fenêtre d'avertissement */
+        .warning-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 200;
+            background-color: rgba(45, 55, 72, 0.9);
+            border: 2px solid #764ba2;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 0 20px rgba(118, 75, 162, 0.5);
+            text-align: center;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        .warning-modal-visible {
+            display: flex;
+            animation: warning-pop 0.5s ease-out forwards;
+        }
+
+        .warning-modal-hidden {
+            animation: warning-fade-out 0.5s ease-in forwards;
+        }
+
+        @keyframes warning-pop {
+            from { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        @keyframes warning-fade-out {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .warning-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ff6347; /* Tomate */
+            text-shadow: 0 0 5px #ff6347;
+            animation: glitch 1s infinite;
+        }
+
+        .warning-message {
+            font-size: 1rem;
+            color: #e2e8f0;
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 
@@ -381,6 +433,11 @@
         </div>
     </div>
 
+    <!-- Fenêtre d'avertissement pour les actions non autorisées -->
+    <div id="warningModal" class="warning-modal">
+        <h4 class="warning-title" data-i18n="warningTitle">ACCÈS REFUSÉ</h4>
+        <p id="warningMessage" class="warning-message"></p>
+    </div>
 
     <div class="card w-full max-w-lg mx-auto p-8 rounded-2xl text-center flex flex-col justify-between h-full">
         <div>
@@ -499,6 +556,9 @@
         const previewImage = document.getElementById('previewImage');
         const previewCanvas = document.getElementById('previewCanvas');
         const previewText = document.getElementById('previewText');
+
+        const warningModal = document.getElementById('warningModal');
+        const warningMessage = document.getElementById('warningMessage');
         
         // Durée de chargement minimale en millisecondes pour la conversion
         const MIN_LOADING_TIME = 3000;
@@ -526,7 +586,10 @@
                 selectPdfFile: 'Veuillez sélectionner un fichier PDF.',
                 previewTitle: 'Aperçu du Fichier',
                 selectFileForPreview: 'Sélectionnez un fichier pour l\'aperçu.',
-                preloaderText: 'SHADOW'
+                preloaderText: 'SHADOW',
+                warningTitle: 'ACCÈS REFUSÉ',
+                rightClickWarning: 'Le clic droit est désactivé sur cette page.',
+                keyboardWarning: 'Cette action est bloquée pour des raisons de sécurité.'
             },
             en: {
                 title: 'File Converter',
@@ -547,7 +610,10 @@
                 selectPdfFile: 'Please select a PDF file.',
                 previewTitle: 'File Preview',
                 selectFileForPreview: 'Select a file for preview.',
-                preloaderText: 'SHADOW'
+                preloaderText: 'SHADOW',
+                warningTitle: 'ACCESS DENIED',
+                rightClickWarning: 'Right-click is disabled on this page.',
+                keyboardWarning: 'This action is blocked for security reasons.'
             },
             es: {
                 title: 'Convertidor de Archivos',
@@ -568,9 +634,50 @@
                 selectPdfFile: 'Por favor, seleccione un archivo PDF.',
                 previewTitle: 'Vista previa del Archivo',
                 selectFileForPreview: 'Seleccione un archivo para la vista previa.',
-                preloaderText: 'SHADOW'
+                preloaderText: 'SHADOW',
+                warningTitle: 'ACCESO DENEGADO',
+                rightClickWarning: 'El clic derecho está deshabilitado en esta página.',
+                keyboardWarning: 'Esta acción está bloqueada por razones de seguridad.'
             }
         };
+
+        // Fonction pour afficher un message d'avertissement stylé
+        function showWarning(messageKey) {
+            const t = translations[navigator.language.split('-')[0]] || translations.fr;
+            warningMessage.textContent = t[messageKey];
+            warningModal.classList.remove('warning-modal-hidden');
+            warningModal.classList.add('warning-modal-visible');
+
+            setTimeout(() => {
+                warningModal.classList.remove('warning-modal-visible');
+                warningModal.classList.add('warning-modal-hidden');
+            }, 3000); // Disparaît après 3 secondes
+        }
+
+        // Fonction pour gérer la désactivation du clic droit
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showWarning('rightClickWarning');
+        });
+
+        // Fonction pour désactiver les raccourcis clavier
+        document.addEventListener('keydown', (e) => {
+            // Bloque F12
+            if (e.key === 'F12') {
+                e.preventDefault();
+                showWarning('keyboardWarning');
+            }
+            // Bloque Ctrl+Shift+I, J, C, U
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) {
+                e.preventDefault();
+                showWarning('keyboardWarning');
+            }
+            // Bloque Ctrl+U
+            if (e.ctrlKey && e.key === 'u') {
+                e.preventDefault();
+                showWarning('keyboardWarning');
+            }
+        });
 
         // Fonction pour détecter et définir la langue
         const setLanguage = () => {
