@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertisseur de Fichiers Stylé</title>
+    <!-- On charge Tailwind CSS pour un design rapide et responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- On charge Inter, une police moderne -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- JSpdf pour convertir des images en PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- PDF.js pour rendre les pages PDF en images (JPG) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js"></script>
+    <!-- PDF-lib pour charger et lire les PDF -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.umd.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Couleur de fond sombre */
+            color: #e2e8f0; /* Texte clair */
+            background: linear-gradient(-45deg, #1a202c, #2d3748, #4a5568);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .card {
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        /* Effet de reflet pour la carte principale */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+            transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .card:hover::before {
+            transform: translateX(200%);
+        }
+
+        .fancy-btn {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .fancy-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 15px 25px -5px rgba(102, 126, 234, 0.3), 0 4px 6px -2px rgba(102, 126, 234, 0.2);
+        }
+
+        /* Effet de reflet pour les boutons */
+        .fancy-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .fancy-btn:hover::before {
+            transform: translateX(200%);
+        }
+
+        /* Effet de clic stylé */
+        .fancy-btn:active {
+            transform: translateY(1px) scale(0.99);
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+            filter: brightness(1.1);
+        }
+        
+        .text-neon {
+            text-shadow: 0 0 5px #667eea, 0 0 10px #667eea, 0 0 15px #764ba2, 0 0 20px #764ba2;
+        }
+
+        .custom-file-input {
+            display: none;
+        }
+
+        /* Pour cacher les canvas générés */
+        #pdfCanvasContainer {
+            display: none;
+        }
+
+        /* Style et animation pour le texte "Powered By" */
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 2px #e2e8f0; }
+            50% { text-shadow: 0 0 8px #9ca3af; }
+        }
+        .powered-by {
+            font-size: 0.75rem; /* text-xs en Tailwind */
+            color: #9ca3af;
+            animation: glow 3s ease-in-out infinite;
+        }
+
+        /* Styles pour l'animation d'entrée du message de succès */
+        @keyframes success-pop-in {
+            0% { transform: scale(0.5) translateY(20px); opacity: 0; filter: blur(5px); }
+            60% { transform: scale(1.1) translateY(-5px); opacity: 1; filter: blur(0); }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .success-message-entry {
+            animation: success-pop-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+        }
+        
+        /* Styles pour le pré-chargement du site */
+        .preloader-hidden {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 1s ease-out, visibility 1s ease-out;
+        }
+        
+        /* Nouvelles animations pour le pré-chargement (Matrix Glitch) */
+        @keyframes matrix-flow {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(100%); }
+        }
+        
+        .preloader-matrix {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            opacity: 0.2;
+        }
+
+        .matrix-col {
+            background: linear-gradient(to bottom, transparent, #667eea, transparent);
+            animation: matrix-flow 3s linear infinite;
+        }
+
+        .matrix-col:nth-child(even) { animation-delay: 1.5s; }
+        .matrix-col:nth-child(3) { animation-delay: 0.5s; }
+        .matrix-col:nth-child(7) { animation-delay: 2.5s; }
+        
+        @keyframes glitch {
+            0% { transform: translate(0); text-shadow: 2px 2px #667eea, -2px -2px #764ba2; }
+            15% { transform: translate(-3px, -3px); text-shadow: 2px 2px #667eea, -2px -2px #764ba2; }
+            30% { transform: translate(3px, 3px); text-shadow: 2px 2px #667eea, -2px -2px #764ba2; }
+            45% { transform: translate(0); text-shadow: 2px 2px #667eea, -2px -2px #764ba2; }
+            50% { transform: translate(-5px, 0); text-shadow: 2px 2px #667eea, -2px -2px #764ba2; }
+            60% { transform: translate(5px, 0); text-shadow: 2px 2px #667eea, -2px -2px #764ba2; }
+            100% { transform: translate(0); text-shadow: 2px 2px #667eea, -2px -2px #764ba2; }
+        }
+        
+        .preloader-text {
+            font-size: 3rem;
+            color: #e2e8f0;
+            z-index: 10;
+            animation: glitch 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+        }
+        
+        /* Effet de grille en arrière-plan */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(102, 126, 234, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        /* Nouvelles animations de chargement de conversion */
+        .loading-matrix-conv {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            overflow: hidden;
+            border: 1px solid #764ba2;
+        }
+        .loading-matrix-conv::before, .loading-matrix-conv::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: -100%;
+            left: 0;
+            background: linear-gradient(to bottom, transparent, #667eea, transparent);
+            animation: matrix-flow 2s linear infinite;
+        }
+        .loading-matrix-conv::after {
+            left: 50%;
+            background: linear-gradient(to bottom, transparent, #764ba2, transparent);
+            animation-delay: 1s;
+        }
+        .loading-matrix-conv .dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #e2e8f0;
+            opacity: 0;
+            animation: dot-flicker 1.5s infinite;
+        }
+        .loading-matrix-conv .dot:nth-child(1) { top: 10%; left: 20%; animation-delay: 0.2s; }
+        .loading-matrix-conv .dot:nth-child(2) { top: 40%; left: 70%; animation-delay: 0.8s; }
+        .loading-matrix-conv .dot:nth-child(3) { top: 70%; left: 10%; animation-delay: 1.5s; }
+        .loading-matrix-conv .dot:nth-child(4) { top: 85%; left: 50%; animation-delay: 2.1s; }
+        @keyframes dot-flicker {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Styles pour l'overlay d'arrière-plan de la fenêtre flottante */
+        .preview-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 99;
+            display: none;
+            backdrop-filter: blur(5px);
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        .preview-overlay-visible {
+            display: block;
+            animation: fade-in 0.3s ease-out;
+        }
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Styles pour la fenêtre flottante de prévisualisation */
+        .preview-window {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 960px;
+            max-height: 90vh;
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+            border-radius: 1rem;
+            display: none;
+            flex-direction: column;
+            padding: 1.5rem;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .preview-window-visible {
+            display: flex;
+            animation: holographic-entry 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+        }
+        
+        /* Nouvelle animation holographique */
+        @keyframes holographic-entry {
+            from { opacity: 0; transform: translate(-50%, -45%) scale(0.9) rotateX(20deg); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1) rotateX(0deg); }
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #4a5568;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .preview-close {
+            background: none;
+            border: none;
+            color: #e2e8f0;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+        .preview-close:hover {
+            transform: scale(1.1);
+        }
+        .preview-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-height: calc(90vh - 5rem);
+            overflow-y: auto;
+        }
+        .preview-content img, .preview-content canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 0.5rem;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+        }
+        
+        .preview-btn {
+            background-color: #4a5568;
+            border: none;
+            color: #e2e8f0;
+            padding: 0.5rem;
+            border-radius: 9999px;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+        .preview-btn:hover {
+            background-color: #667eea;
+            transform: scale(1.1);
+            box-shadow: 0 5px 10px rgba(102, 126, 234, 0.3);
+        }
+
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+    <!-- Overlay sombre pour la fenêtre de prévisualisation -->
+    <div id="previewOverlay" class="preview-overlay"></div>
+
+    <!-- Pré-chargement du site -->
+    <div id="preloader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-1000">
+        <div class="preloader-matrix">
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+            <div class="matrix-col"></div>
+        </div>
+        <p class="preloader-text font-bold neon-text" data-i18n="preloaderText">SHADOW</p>
+    </div>
+
+    <!-- Fenêtre flottante de prévisualisation -->
+    <div id="previewWindow" class="preview-window">
+        <div class="preview-header">
+            <h3 id="previewTitle" class="text-xl font-bold">Aperçu du Fichier</h3>
+            <button id="closePreviewBtn" class="preview-close">&times;</button>
+        </div>
+        <div class="preview-content">
+            <img id="previewImage" class="hidden">
+            <canvas id="previewCanvas" class="hidden"></canvas>
+            <p id="previewText" class="text-gray-400" data-i18n="selectFileForPreview">Sélectionnez un fichier pour l'aperçu.</p>
+        </div>
+    </div>
+
+
+    <div class="card w-full max-w-lg mx-auto p-8 rounded-2xl text-center flex flex-col justify-between h-full">
+        <div>
+            <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2 text-neon" data-i18n="title">
+                Convertisseur de Fichiers
+            </h1>
+            <p class="text-gray-400 mb-8" data-i18n="subtitle">
+                Passez de JPG à PDF ou de PDF à JPG en un instant.
+            </p>
+
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Section JPG vers PDF -->
+                <div id="jpgToPdf" class="card p-6 rounded-2xl w-full">
+                    <h2 class="text-2xl font-semibold mb-4" data-i18n="jpgToPdfTitle">JPG vers PDF</h2>
+                    <label for="jpgFileInput" class="fancy-btn block w-full py-3 rounded-xl cursor-pointer font-bold mb-4" data-i18n="selectJpg">
+                        Sélectionner un JPG
+                    </label>
+                    <input type="file" id="jpgFileInput" class="custom-file-input" accept="image/jpeg, image/jpg" multiple>
+                    <div class="flex items-center justify-center gap-2">
+                        <p id="jpgFileCount" class="text-sm text-gray-500"></p>
+                        <button id="previewJpgBtn" class="preview-btn hidden" title="Aperçu du fichier">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                                <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="loadingJpg" class="hidden flex flex-col items-center justify-center my-4 loading-container">
+                        <div class="loading-matrix-conv">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                        <p class="mt-4 text-sm text-gray-400" data-i18n="converting">Conversion en cours...</p>
+                    </div>
+                    <div id="resultJpg" class="hidden mt-4">
+                        <a id="downloadJpgBtn" class="fancy-btn w-full py-3 rounded-xl font-bold block" download="converted.pdf" data-i18n="downloadPdf">
+                            Télécharger le PDF
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Section PDF vers JPG -->
+                <div id="pdfToJpg" class="card p-6 rounded-2xl w-full">
+                    <h2 class="text-2xl font-semibold mb-4" data-i18n="pdfToJpgTitle">PDF vers JPG</h2>
+                    <label for="pdfFileInput" class="fancy-btn block w-full py-3 rounded-xl cursor-pointer font-bold mb-4" data-i18n="selectPdf">
+                        Sélectionner un PDF
+                    </label>
+                    <input type="file" id="pdfFileInput" class="custom-file-input" accept="application/pdf">
+                    <div class="flex items-center justify-center gap-2">
+                        <p id="pdfFileName" class="text-sm text-gray-500"></p>
+                        <button id="previewPdfBtn" class="preview-btn hidden" title="Aperçu du fichier">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                                <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="loadingPdf" class="hidden flex flex-col items-center justify-center my-4 loading-container">
+                        <div class="loading-matrix-conv">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                        <p class="mt-4 text-sm text-gray-400" data-i18n="converting">Conversion en cours...</p>
+                    </div>
+                    <div id="resultPdf" class="hidden mt-4">
+                        <a id="downloadPdfBtn" class="fancy-btn w-full py-3 rounded-xl font-bold block" download="converted.jpg" data-i18n="downloadJpg">
+                            Télécharger le JPG
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone pour les messages -->
+            <div id="messageBox" class="mt-8 text-center text-sm p-4 rounded-xl hidden">
+                <p id="messageText"></p>
+            </div>
+        </div>
+        
+        <!-- Texte "Powered By" discret -->
+        <div class="mt-8">
+            <p class="powered-by" data-i18n="poweredBy">Propulsé par <span class="font-bold">SHADOW</span></p>
+        </div>
+    </div>
+
+    <script>
+        window.jsPDF = window.jspdf.jsPDF;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        
+        const jpgFileInput = document.getElementById('jpgFileInput');
+        const jpgFileCount = document.getElementById('jpgFileCount');
+        const previewJpgBtn = document.getElementById('previewJpgBtn');
+        const loadingJpg = document.getElementById('loadingJpg');
+        const resultJpg = document.getElementById('resultJpg');
+        const downloadJpgBtn = document.getElementById('downloadJpgBtn');
+
+        const pdfFileInput = document.getElementById('pdfFileInput');
+        const pdfFileName = document.getElementById('pdfFileName');
+        const previewPdfBtn = document.getElementById('previewPdfBtn');
+        const loadingPdf = document.getElementById('loadingPdf');
+        const resultPdf = document.getElementById('resultPdf');
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const preloader = document.getElementById('preloader');
+        const preloaderText = document.querySelector('.preloader-text');
+        
+        const previewOverlay = document.getElementById('previewOverlay');
+        const previewWindow = document.getElementById('previewWindow');
+        const closePreviewBtn = document.getElementById('closePreviewBtn');
+        const previewTitle = document.getElementById('previewTitle');
+        const previewImage = document.getElementById('previewImage');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const previewText = document.getElementById('previewText');
+        
+        // Durée de chargement minimale en millisecondes pour la conversion
+        const MIN_LOADING_TIME = 3000;
+        // Durée du pré-chargement du site
+        const PRELOADER_TIME = 6000;
+
+        // Dictionnaire de traduction
+        const translations = {
+            fr: {
+                title: 'Convertisseur de Fichiers',
+                subtitle: 'Passez de JPG à PDF ou de PDF à JPG en un instant.',
+                jpgToPdfTitle: 'JPG vers PDF',
+                selectJpg: 'Sélectionner un JPG',
+                converting: 'Conversion en cours...',
+                downloadPdf: 'Télécharger le PDF',
+                pdfToJpgTitle: 'PDF vers JPG',
+                selectPdf: 'Sélectionner un PDF',
+                downloadJpg: 'Télécharger le JPG',
+                poweredBy: 'Propulsé par SHADOW',
+                errorJpg: 'Veuillez sélectionner des fichiers JPG ou JPEG.',
+                errorPdfMultiple: "Cette version ne supporte que la conversion d'une seule page PDF en JPG. Veuillez sélectionner un PDF d'une page.",
+                errorPdfConvert: 'Une erreur est survenue lors de la conversion du PDF.',
+                success: 'Conversion réussie !',
+                fileCount: (count) => `${count} image(s) sélectionnée(s).`,
+                selectPdfFile: 'Veuillez sélectionner un fichier PDF.',
+                previewTitle: 'Aperçu du Fichier',
+                selectFileForPreview: 'Sélectionnez un fichier pour l\'aperçu.',
+                preloaderText: 'SHADOW'
+            },
+            en: {
+                title: 'File Converter',
+                subtitle: 'Convert from JPG to PDF or from PDF to JPG in an instant.',
+                jpgToPdfTitle: 'JPG to PDF',
+                selectJpg: 'Select a JPG',
+                converting: 'Conversion in progress...',
+                downloadPdf: 'Download PDF',
+                pdfToJpgTitle: 'PDF to JPG',
+                selectPdf: 'Select a PDF',
+                downloadJpg: 'Download JPG',
+                poweredBy: 'Powered by SHADOW',
+                errorJpg: 'Please select JPG or JPEG files.',
+                errorPdfMultiple: 'This version only supports converting single-page PDFs to JPGs. Please select a single-page PDF.',
+                errorPdfConvert: 'An error occurred during PDF conversion.',
+                success: 'Conversion successful!',
+                fileCount: (count) => `${count} image(s) selected.`,
+                selectPdfFile: 'Please select a PDF file.',
+                previewTitle: 'File Preview',
+                selectFileForPreview: 'Select a file for preview.',
+                preloaderText: 'SHADOW'
+            },
+            es: {
+                title: 'Convertidor de Archivos',
+                subtitle: 'Convierta de JPG a PDF o de PDF a JPG al instante.',
+                jpgToPdfTitle: 'JPG a PDF',
+                selectJpg: 'Seleccionar un JPG',
+                converting: 'Conversión en curso...',
+                downloadPdf: 'Descargar PDF',
+                pdfToJpgTitle: 'PDF a JPG',
+                selectPdf: 'Seleccionar un PDF',
+                downloadJpg: 'Descargar JPG',
+                poweredBy: 'Desarrollado por SHADOW',
+                errorJpg: 'Por favor, seleccione archivos JPG o JPEG.',
+                errorPdfMultiple: 'Esta versión solo admite la conversión de PDF de una sola página a JPG. Por favor, seleccione un PDF de una sola página.',
+                errorPdfConvert: 'Ocurrió un error durante la conversión del PDF.',
+                success: '¡Conversión exitosa!',
+                fileCount: (count) => `${count} imagen(es) seleccionada(s).`,
+                selectPdfFile: 'Por favor, seleccione un archivo PDF.',
+                previewTitle: 'Vista previa del Archivo',
+                selectFileForPreview: 'Seleccione un archivo para la vista previa.',
+                preloaderText: 'SHADOW'
+            }
+        };
+
+        // Fonction pour détecter et définir la langue
+        const setLanguage = () => {
+            const userLang = navigator.language.split('-')[0];
+            const lang = translations[userLang] ? userLang : 'fr'; // Utilise le français par défaut
+            const t = translations[lang];
+
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.dataset.i18n;
+                if (key === 'preloaderText') {
+                    // Les animations de texte sont gérées par CSS, on laisse le texte brut
+                    element.textContent = t[key];
+                } else if (t[key]) {
+                    element.textContent = t[key];
+                }
+            });
+
+            // Gérer les textes dynamiques
+            document.title = t.title;
+            // Met à jour le titre de l'aperçu si nécessaire
+            previewTitle.textContent = t.previewTitle;
+        };
+        
+        // Fonction pour afficher un message
+        function showMessage(messageKey, isError = true) {
+            const t = translations[navigator.language.split('-')[0]] || translations.fr;
+            messageText.textContent = t[messageKey];
+            messageBox.style.display = 'block';
+            
+            messageBox.classList.remove('success-message-entry');
+            void messageBox.offsetWidth; // Force reflow
+            messageBox.classList.add('success-message-entry');
+
+            if (isError) {
+                messageBox.className = 'mt-8 text-center text-sm p-4 rounded-xl bg-red-800 text-red-200 success-message-entry';
+            } else {
+                messageBox.className = 'mt-8 text-center text-sm p-4 rounded-xl bg-green-800 text-green-200 success-message-entry';
+            }
+        }
+
+        // Fonction pour cacher le message
+        function hideMessage() {
+            messageBox.classList.remove('success-message-entry');
+            messageBox.style.display = 'none';
+        }
+
+        // Fonction pour afficher la prévisualisation
+        async function showPreview(file) {
+            const t = translations[navigator.language.split('-')[0]] || translations.fr;
+            previewImage.classList.add('hidden');
+            previewCanvas.classList.add('hidden');
+            previewText.classList.add('hidden');
+            previewOverlay.classList.add('preview-overlay-visible');
+            
+            previewTitle.textContent = file.name;
+            
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewImage.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else if (file.type === 'application/pdf') {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdfDoc.getPage(1);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvasContext = previewCanvas.getContext('2d');
+                previewCanvas.width = viewport.width;
+                previewCanvas.height = viewport.height;
+                const renderContext = {
+                    canvasContext: canvasContext,
+                    viewport: viewport,
+                };
+                await page.render(renderContext).promise;
+                previewCanvas.classList.remove('hidden');
+            } else {
+                previewText.classList.remove('hidden');
+            }
+            previewWindow.classList.add('preview-window-visible');
+        }
+
+        // Événement pour fermer la fenêtre de prévisualisation
+        closePreviewBtn.addEventListener('click', () => {
+            previewWindow.classList.remove('preview-window-visible');
+            previewOverlay.classList.remove('preview-overlay-visible');
+            previewImage.src = '';
+            const canvasContext = previewCanvas.getContext('2d');
+            canvasContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        });
+
+        // Conversion JPG vers PDF
+        jpgFileInput.addEventListener('change', async (e) => {
+            const files = e.target.files;
+            const t = translations[navigator.language.split('-')[0]] || translations.fr;
+            hideMessage();
+            resultJpg.classList.add('hidden');
+            previewJpgBtn.classList.add('hidden');
+            jpgFileCount.textContent = t.fileCount(files.length);
+            
+            if (files.length === 0) {
+                loadingJpg.classList.add('hidden');
+                return;
+            }
+            previewJpgBtn.classList.remove('hidden');
+
+            const startTime = Date.now();
+            const performConversion = async () => {
+                loadingJpg.classList.remove('hidden');
+                try {
+                    const doc = new window.jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+                    for (let i = 0; i < files.length; i++) {
+                        if (files[i].type !== 'image/jpeg' && files[i].type !== 'image/jpg') {
+                            throw new Error('errorJpg');
+                        }
+                        if (i > 0) doc.addPage();
+                        const imgData = await new Promise(resolve => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.readAsDataURL(files[i]);
+                        });
+
+                        const img = new Image();
+                        img.src = imgData;
+                        await new Promise(resolve => img.onload = resolve);
+                        
+                        const imgWidth = img.width;
+                        const imgHeight = img.height;
+                        const pageHeight = doc.internal.pageSize.getHeight();
+                        const pageWidth = doc.internal.pageSize.getWidth();
+
+                        const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+                        const newWidth = imgWidth * ratio;
+                        const newHeight = imgHeight * ratio;
+
+                        const x = (pageWidth - newWidth) / 2;
+                        const y = (pageHeight - newHeight) / 2;
+
+                        doc.addImage(imgData, 'JPEG', x, y, newWidth, newHeight);
+                    }
+
+                    const pdfDataUri = doc.output('datauristring');
+                    downloadJpgBtn.href = pdfDataUri;
+                    loadingJpg.classList.add('hidden');
+                    resultJpg.classList.remove('hidden');
+                    showMessage("success", false);
+                } catch (error) {
+                    loadingJpg.classList.add('hidden');
+                    console.error(error);
+                    showMessage(error.message);
+                }
+            };
+            
+            const timeElapsed = Date.now() - startTime;
+            if (timeElapsed < MIN_LOADING_TIME) {
+                setTimeout(performConversion, MIN_LOADING_TIME - timeElapsed);
+            } else {
+                performConversion();
+            }
+        });
+
+        // Conversion PDF vers JPG
+        pdfFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            const t = translations[navigator.language.split('-')[0]] || translations.fr;
+            hideMessage();
+            resultPdf.classList.add('hidden');
+            previewPdfBtn.classList.add('hidden');
+            pdfFileName.textContent = file ? file.name : '';
+
+            if (!file) {
+                loadingPdf.classList.add('hidden');
+                return;
+            }
+            previewPdfBtn.classList.remove('hidden');
+            
+            const startTime = Date.now();
+            
+            const performConversion = async () => {
+                loadingPdf.classList.remove('hidden');
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    
+                    if (pdfDoc.numPages > 1) {
+                        showMessage('errorPdfMultiple');
+                        loadingPdf.classList.add('hidden');
+                        return;
+                    }
+                    
+                    const page = await pdfDoc.getPage(1);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const canvasContext = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    const renderContext = { canvasContext, viewport };
+                    await page.render(renderContext).promise;
+
+                    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                    downloadPdfBtn.href = imgData;
+                    downloadPdfBtn.download = file.name.replace('.pdf', '.jpg');
+
+                    loadingPdf.classList.add('hidden');
+                    resultPdf.classList.remove('hidden');
+                    showMessage("success", false);
+
+                } catch (error) {
+                    loadingPdf.classList.add('hidden');
+                    console.error(error);
+                    showMessage('errorPdfConvert');
+                }
+            };
+            
+            const timeElapsed = Date.now() - startTime;
+            if (timeElapsed < MIN_LOADING_TIME) {
+                setTimeout(performConversion, MIN_LOADING_TIME - timeElapsed);
+            } else {
+                performConversion();
+            }
+        });
+
+        // Événements pour les boutons de prévisualisation
+        previewJpgBtn.addEventListener('click', () => {
+            if (jpgFileInput.files.length > 0) {
+                showPreview(jpgFileInput.files[0]);
+            }
+        });
+        
+        previewPdfBtn.addEventListener('click', () => {
+            if (pdfFileInput.files.length > 0) {
+                showPreview(pdfFileInput.files[0]);
+            }
+        });
+
+        // Cacher le pré-chargement après 6 secondes et appeler setLanguage
+        document.addEventListener('DOMContentLoaded', () => {
+            setLanguage();
+            setTimeout(() => {
+                preloader.classList.add('preloader-hidden');
+            }, PRELOADER_TIME);
+        });
+
+    </script>
+</body>
+</html>
